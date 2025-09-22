@@ -144,7 +144,6 @@
             border-radius: var(--border-radius);
             background-color: var(--primary-color);
             overflow: hidden;
-            box-sizing: border-box;
         }
 
         .canvas-container.delete-mode {
@@ -314,6 +313,7 @@
             height: 100%;
             pointer-events: none;
         }
+
     </style>
 </head>
 <body>
@@ -368,7 +368,6 @@
         let dragStickerMode = false;
         let draggedSticker = null;
         let dragStartX, dragStartY;
-        let canvasState = null; // משתנה לשמירת מצב הקנבס
         
         const drawingColors = ['#0055d4', '#d40000', '#008000', '#ffa500', '#800080', '#000000'];
         let currentColor = drawingColors[0];
@@ -377,7 +376,7 @@
 
         const stickers = {
             start: `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="#4CAF50" stroke="#fff" stroke-width="5"/></svg>`,
-            end: `<svg viewBox="0 0 100 100"><polygon points="50,5 61,35 95,35 67,55 78,85 50,65 22,85 33,55 5,35 39,35" fill="#F Brag="#F44336" stroke="#fff" stroke-width="5"/></svg>`,
+            end: `<svg viewBox="0 0 100 100"><polygon points="50,5 61,35 95,35 67,55 78,85 50,65 22,85 33,55 5,35 39,35" fill="#F44336" stroke="#fff" stroke-width="5"/></svg>`,
             arrowN: `<svg viewBox="0 0 100 100"><path d="M50 90 L50 15 M30 35 L50 10 L70 35" stroke="#007bff" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
             arrowNE: `<svg viewBox="0 0 100 100"><path d="M20 80 L80 20 M60 15 L85 20 L80 40" stroke="#007bff" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
             arrowE: `<svg viewBox="0 0 100 100"><path d="M10 50 L85 50 M65 30 L90 50 L65 70" stroke="#007bff" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
@@ -405,10 +404,8 @@
             setMode('draw');
             
             window.addEventListener('resize', () => {
-                if (currentLetterKey && drawingCanvas.width > 0 && drawingCanvas.height > 0) {
-                    saveCanvasState();
-                    updateCanvasResolution();
-                    prepareDrawingCanvas(true);
+                if (currentLetterKey) {
+                    prepareDrawingCanvas();
                 }
             });
 
@@ -452,32 +449,6 @@
             drawingCanvas = document.getElementById('drawingCanvas');
             drawingCtx = drawingCanvas.getContext('2d');
             stickerContainer = document.getElementById('stickerContainer');
-            updateCanvasResolution();
-        }
-
-        function updateCanvasResolution() {
-            const canvasContainer = document.getElementById('canvasContainer');
-            const pixelRatio = window.devicePixelRatio || 1;
-            const rect = canvasContainer.getBoundingClientRect();
-            drawingCanvas.width = rect.width * pixelRatio;
-            drawingCanvas.height = rect.height * pixelRatio;
-            drawingCanvas.style.width = `${rect.width}px`;
-            drawingCanvas.style.height = `${rect.height}px`;
-            drawingCtx.scale(pixelRatio, pixelRatio);
-        }
-
-        function saveCanvasState() {
-            if (drawingCanvas && drawingCtx && drawingCanvas.width > 0 && drawingCanvas.height > 0) {
-                canvasState = drawingCtx.getImageData(0, 0, drawingCanvas.width, drawingCanvas.height);
-            } else {
-                canvasState = null; // איפוס אם הקנבס לא תקין
-            }
-        }
-
-        function restoreCanvasState() {
-            if (canvasState && drawingCtx && drawingCanvas.width > 0 && drawingCanvas.height > 0) {
-                drawingCtx.putImageData(canvasState, 0, 0);
-            }
         }
 
         function createColorPalette() {
@@ -529,8 +500,7 @@
             
             document.getElementById('letterDescription').textContent = `תרגול כתיבת האות: ${currentLetterName}`;
             
-            updateCanvasResolution();
-            prepareDrawingCanvas(false);
+            prepareDrawingCanvas();
             clearStickers();
         }
 
@@ -538,7 +508,6 @@
             document.getElementById('practiceArea').classList.remove('active');
             document.getElementById('lettersGrid').style.display = 'grid';
             currentLetterKey = '';
-            canvasState = null;
             deleteStickerMode = false;
             dragStickerMode = false;
             updateDeleteButtonState();
@@ -560,7 +529,6 @@
                 stickerPalette.style.display = 'none';
                 instructions.textContent = 'בחרו צבע וציירו בתוך האות!';
             } else { // sticker mode
-                saveCanvasState();
                 drawBtn.classList.remove('active');
                 stickerBtn.classList.add('active');
                 colorPalette.style.display = 'none';
@@ -577,76 +545,28 @@
 
         // --- Canvas and Drawing ---
 
-        function prepareDrawingCanvas(restore = false) {
+        function prepareDrawingCanvas() {
             if (!currentLetterKey) return;
             
-            if (!restore) {
-                saveCanvasState();
-            }
-
+            drawingCanvas.width = 400;
+            drawingCanvas.height = 400;
+            
             drawingCtx.globalCompositeOperation = 'source-over';
             drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
 
-            const pixelRatio = window.devicePixelRatio || 1;
-            const canvasWidth = drawingCanvas.width / pixelRatio;
-            const canvasHeight = drawingCanvas.height / pixelRatio;
-            const fontSize = Math.min(canvasWidth, canvasHeight) * 0.9;
-            drawingCtx.font = `${fontSize}px 'Suez One', serif`;
-            drawingCtx.shadowBlur = 0;
-            drawingCtx.shadowColor = 'transparent';
+            const fontSize = 350;
+            drawingCtx.font = `bold ${fontSize}px 'Suez One', serif`;
             drawingCtx.fillStyle = '#FFFFFF';
             drawingCtx.textAlign = 'center';
             drawingCtx.textBaseline = 'middle';
-
-            const letterOffsets = {
-                'א': { x: 0, y: 0 },
-                'ב': { x: 0, y: 0 },
-                'בּ': { x: 0, y: 0 },
-                'ג': { x: 0, y: 0 },
-                'ד': { x: 0, y: 0 },
-                'ה': { x: 0, y: 0 },
-                'ו': { x: 0, y: 0 },
-                'ז': { x: 0, y: 0 },
-                'ח': { x: 0, y: 0 },
-                'ט': { x: 0, y: 0 },
-                'י': { x: 0, y: 0 },
-                'כ': { x: 0, y: 0 },
-                'כּ': { x: 0, y: 0 },
-                'ך': { x: 0, y: 0 },
-                'ל': { x: 0, y: 0 },
-                'מ': { x: 0, y: 0 },
-                'ם': { x: 0, y: 0 },
-                'נ': { x: 0, y: 0 },
-                'ן': { x: 0, y: 0 },
-                'ס': { x: 0, y: 0 },
-                'ע': { x: 0, y: 0 },
-                'פ': { x: 0, y: 0 },
-                'פּ': { x: 0, y: 0 },
-                'ף': { x: 0, y: 0 },
-                'צ': { x: 0, y: 0 },
-                'ץ': { x: 0, y: 0 },
-                'ק': { x: 0, y: 0 },
-                'ר': { x: 0, y: 0 },
-                'שׂ': { x: 0, y: 0 },
-                'שׁ': { x: 0, y: 0 },
-                'ת': { x: 0, y: 0 }
-            };
-
-            const offset = letterOffsets[currentLetterKey] || { x: 0, y: 0 };
-            drawingCtx.fillText(currentLetterKey, canvasWidth / 2 + offset.x, canvasHeight / 2 + offset.y);
-            
-            if (canvasState && restore) {
-                drawingCtx.globalCompositeOperation = 'source-over';
-                restoreCanvasState();
-            }
+            const yOffset = ['ל', 'ק', 'ך', 'ן', 'ף', 'ץ'].includes(currentLetterKey) ? 0 : 20; 
+            drawingCtx.fillText(currentLetterKey, drawingCanvas.width / 2, drawingCanvas.height / 2 + yOffset);
             
             drawingCtx.globalCompositeOperation = 'source-atop';
         }
         
         function clearDrawing() {
-            canvasState = null;
-            updateCanvasResolution();
-            prepareDrawingCanvas(false);
+            prepareDrawingCanvas();
         }
 
         function clearStickers() {
@@ -659,21 +579,20 @@
 
         function getEventCoords(e, element) {
             const rect = element.getBoundingClientRect();
-            const pixelRatio = window.devicePixelRatio || 1;
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            const x = (clientX - rect.left) * (drawingCanvas.width / rect.width) / pixelRatio;
-            const y = (clientY - rect.top) * (drawingCanvas.height / rect.height) / pixelRatio;
+            const scaleX = drawingCanvas.width / rect.width;
+            const scaleY = drawingCanvas.height / rect.height;
             return {
-                x: Math.max(0, Math.min(x, drawingCanvas.width / pixelRatio)),
-                y: Math.max(0, Math.min(y, drawingCanvas.height / pixelRatio))
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
             };
         }
 
         // --- Delete Sticker Mode ---
         function toggleDeleteStickerMode() {
             deleteStickerMode = !deleteStickerMode;
-            dragStickerMode = false;
+            dragStickerMode = false; // בטל מצב גרירה אם פעיל
             updateDeleteButtonState();
             updateDragButtonState();
             const instructions = document.getElementById('instructions');
@@ -716,7 +635,7 @@
         // --- Drag Sticker Mode ---
         function toggleDragStickerMode() {
             dragStickerMode = !dragStickerMode;
-            deleteStickerMode = false;
+            deleteStickerMode = false; // בטל מצב מחיקה אם פעיל
             updateDragButtonState();
             updateDeleteButtonState();
             const instructions = document.getElementById('instructions');
@@ -771,7 +690,7 @@
 
                 const percentX = ((clientX - canvasRect.left) / canvasRect.width) * 100;
                 const percentY = ((clientY - canvasRect.top) / canvasRect.height) * 100;
-                const stickerSizePercent = (50 / 400) * 100;
+                const stickerSizePercent = (50 / 400) * 100; // 50px sticker on 400px canvas
 
                 draggedSticker.style.left = `${percentX - stickerSizePercent / 2}%`;
                 draggedSticker.style.top = `${percentY - stickerSizePercent / 2}%`;
@@ -797,7 +716,7 @@
         drawingContainer.addEventListener('touchend', (e) => { if (currentMode === 'draw') handleDrawEnd(e); });
 
         function handleCanvasClick(e) {
-            if (deleteStickerMode || dragStickerMode) return;
+            if (deleteStickerMode || dragStickerMode) return; // לא מאפשר הדבקה או ציור במצב מחיקה או גרירה
             if (currentMode === 'draw') {
                 handleDrawStart(e);
             } else if (currentMode === 'sticker' && selectedStickerType) {
@@ -824,7 +743,6 @@
             drawingCtx.beginPath();
             drawingCtx.moveTo(x, y);
         }
-
         function handleDrawMove(e) {
             if (!isDrawing) return;
             e.preventDefault();
@@ -832,12 +750,10 @@
             drawingCtx.lineTo(x, y);
             drawingCtx.stroke();
         }
-
         function handleDrawEnd() {
             if (!isDrawing) return;
             isDrawing = false;
             drawingCtx.closePath();
-            saveCanvasState();
             document.getElementById('instructions').textContent = 'נהדר! לחצו על "נקה" כדי לנסות שוב.';
         }
 
@@ -856,7 +772,7 @@
             const percentX = ((clientX - canvasRect.left) / canvasRect.width) * 100;
             const percentY = ((clientY - canvasRect.top) / canvasRect.height) * 100;
 
-            const stickerSizePercent = (50 / 400) * 100;
+            const stickerSizePercent = (50 / 400) * 100; // 50px sticker on 400px canvas
 
             const sticker = document.createElement('div');
             sticker.className = 'sticker';
